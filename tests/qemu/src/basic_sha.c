@@ -17,7 +17,7 @@
 // Constants
 //-----------------------------------------------------------------------------
 
-static const uint8_t _TEXT_00[] __attribute__((aligned(sizeof(uint64_t)))) = {
+static const uint8_t _TEXT_00[] ALIGN(sizeof(uint64_t)) = {
     0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -26,7 +26,7 @@ static const uint8_t _TEXT_00[] __attribute__((aligned(sizeof(uint64_t)))) = {
     0x00, 0x00, 0x00, 0x08
 };
 
-static const uint8_t _TEXT_0A[] __attribute__((aligned(sizeof(uint64_t)))) = {
+static const uint8_t _TEXT_0A[] ALIGN(sizeof(uint64_t)) = {
     0x0A, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -34,6 +34,7 @@ static const uint8_t _TEXT_0A[] __attribute__((aligned(sizeof(uint64_t)))) = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0x00, 0x00, 0x00, 0x08
 };
+
 static const uint8_t _TEXT_HASH_00[] = {
     0x6E, 0x34, 0x0B, 0x9C, 0xFF, 0xB3, 0x7A, 0x98, 0x9C, 0xA5, 0x44, 0xE6,
     0xBB, 0x78, 0x0A, 0x2C, 0x78, 0x90, 0x1D, 0x3F, 0xB3, 0x37, 0x38, 0x76,
@@ -55,72 +56,8 @@ static const uint8_t _TEXT_HASH_0A[] = {
 static uint8_t _sha2_buf[SHA256_SIZE] ALIGN(sizeof(uint64_t));
 
 //-----------------------------------------------------------------------------
-// DMA SHA test implementation
+// Test implementation
 //-----------------------------------------------------------------------------
-
-static void
-_hca_sha_get_hash(uint8_t * hash, size_t length)
-{
-    // hash should be aligned, not checked here
-    #if __riscv_xlen >= 64
-    size_t size = length/sizeof(uint64_t);
-    uint64_t * ptr = (uint64_t *)hash;
-    #else
-    size_t size = length/sizeof(uint32_t);
-    uint32_t * ptr = (uint32_t *)hash;
-    #endif
-    for(unsigned int ix=0; ix<size; ix++) {
-        ptr[size - 1u - ix] =
-            #if __riscv_xlen >= 64
-            __builtin_bswap64(METAL_REG64(HCA_BASE,
-                              METAL_SIFIVE_HCA_HASH+ix*sizeof(uint64_t)));
-            #else
-            __builtin_bswap32(METAL_REG32(HCA_BASE,
-                              METAL_SIFIVE_HCA_HASH+ix*sizeof(uint32_t)));
-            #endif
-    }
-}
-
-static void
-_sha_push(const uint8_t * src, size_t length)
-{
-    const uint8_t * end = src+length;
-    while ( src < end ) {
-        #if __riscv_xlen >= 64
-        if ( !(((uintptr_t)src) & (sizeof(uint64_t)-1u)) &&
-                (length >= sizeof(uint64_t))) {
-            METAL_REG64(HCA_BASE, METAL_SIFIVE_HCA_FIFO_IN) =
-                *(const uint64_t *)src;
-            src += sizeof(uint64_t);
-            length -= sizeof(uint64_t);
-            continue;
-        }
-        #endif // __riscv_xlen >= 64
-        if ( ! (((uintptr_t)src) & (sizeof(uint32_t)-1u)) &&
-                (length >= sizeof(uint32_t))) {
-            METAL_REG32(HCA_BASE, METAL_SIFIVE_HCA_FIFO_IN) =
-                *(const uint32_t *)src;
-            src += sizeof(uint32_t);
-            length -= sizeof(uint32_t);
-            continue;
-        }
-        if ( ! (((uintptr_t)src) & (sizeof(uint16_t)-1u)) &&
-                (length >= sizeof(uint16_t))) {
-            METAL_REG16(HCA_BASE, METAL_SIFIVE_HCA_FIFO_IN) =
-                *(const uint16_t *)src;
-            src += sizeof(uint16_t);
-            length -= sizeof(uint16_t);
-            continue;
-        }
-        if ( ! (((uintptr_t)src) & (sizeof(uint8_t)-1u)) ) {
-            METAL_REG8(HCA_BASE, METAL_SIFIVE_HCA_FIFO_IN) =
-                *(const uint8_t *)src;
-            src += sizeof(uint8_t);
-            length -= sizeof(uint8_t);
-            continue;
-        }
-    }
-}
 
 static void
 _test_sha_aligned_poll(uint8_t * hash ALIGN(sizeof(uint64_t)),
