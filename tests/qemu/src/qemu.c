@@ -50,6 +50,7 @@ _ut_run(void)
     // UnityFixture.NameFilter = "unaligned_payload";
 
     RUN_TEST_GROUP(trng);
+    RUN_TEST_GROUP(basic_sha_poll);
     RUN_TEST_GROUP(dma_sha_poll);
     RUN_TEST_GROUP(dma_sha_irq);
     RUN_TEST_GROUP(dma_aes_ecb_poll);
